@@ -1,0 +1,17 @@
+Hello Everyone!
+
+Distributed File System Test File
+
+Name: Tanish Sahore
+Course: Operating Systems
+Project: Distributed File System with Fault Tolerance
+
+This file is used to demonstrate:
+1. File upload to distributed nodes
+2. Replication across multiple storage nodes
+3. Fault tolerance in case of node failure
+
+If you are reading this after download,
+it means the system is working correctly.
+
+Timestamp: Demo Execution

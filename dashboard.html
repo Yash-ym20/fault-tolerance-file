@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DFS Dashboard</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Arial, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #020617, #0f172a, #111827);
+  color: #f8fafc;
+}
+
+.container {
+  width: 90%;
+  max-width: 950px;
+  margin: 40px auto;
+}
+
+.header {
+  text-align: center;
+  padding: 35px 20px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #334155;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+}
+
+.header h1 {
+  font-size: 38px;
+  color: #38bdf8;
+  margin-bottom: 10px;
+}
+
+.header p {
+  color: #94a3b8;
+  font-size: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+  margin-top: 30px;
+}
+
+.card {
+  background: rgba(2, 6, 23, 0.9);
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 25px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.35);
+}
+
+.card h2 {
+  color: #e0f2fe;
+  margin-bottom: 18px;
+  font-size: 22px;
+}
+
+input[type="file"],
+input[type="text"] {
+  width: 100%;
+  padding: 13px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f8fafc;
+  outline: none;
+}
+
+input[type="text"]::placeholder {
+  color: #64748b;
+}
+
+button {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.25s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(59,130,246,0.35);
+}
+
+.status-box {
+  margin-top: 30px;
+  background: #020617;
+  border: 1px solid #334155;
+  border-radius: 18px;
+  padding: 25px;
+  min-height: 90px;
+}
+
+.status-box h2 {
+  color: #38bdf8;
+  margin-bottom: 10px;
+}
+
+#status {
+  white-space: pre-line;
+  color: #cbd5e1;
+  font-size: 16px;
+}
+
+.badge {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  font-size: 14px;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 25px;
+  color: #64748b;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <h1>Distributed File System</h1>
+    <p>Fault Tolerance using Replication across Multiple Storage Nodes</p>
+    <span class="badge">Live Backend Connected</span>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>📤 Upload File</h2>
+      <input type="file" id="fileInput">
+      <button onclick="uploadFile()">Upload to DFS</button>
+    </div>
+
+    <div class="card">
+      <h2>📥 Download File</h2>
+      <input type="text" id="filename" placeholder="Enter filename e.g. test.txt">
+      <button onclick="downloadFile()">Download from DFS</button>
+    </div>
+
+    <div class="card">
+      <h2>🟢 Node Health</h2>
+      <button onclick="checkNodes()">Check Nodes</button>
+    </div>
+
+  </div>
+
+  <div class="status-box">
+    <h2>System Status</h2>
+    <p id="status">Ready. Start by checking nodes or uploading a file.</p>
+  </div>
+
+  <div class="footer">
+    DFS Project | Fault Tolerance Demo | Python Flask Backend
+  </div>
+
+</div>
+
+<script>
+const MASTER = "http://localhost:5000";
+
+async function uploadFile() {
+  let file = document.getElementById("fileInput").files[0];
+  if (!file) {
+    alert("Please select a file first");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Uploading file to distributed nodes...";
+
+  let res = await fetch(`${MASTER}/upload`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ filename: file.name })
+  });
+
+  let data = await res.json();
+
+  for (let node of data.nodes) {
+    let formData = new FormData();
+    formData.append("file", file);
+    await fetch(`${node}/store`, {
+      method: "POST",
+      body: formData
+    });
+  }
+
+  document.getElementById("status").innerText =
+    "✅ File uploaded successfully!\n📌 Replicated on: " + data.nodes.join(", ");
+}
+
+async function downloadFile() {
+  let filename = document.getElementById("filename").value;
+
+  if (!filename) {
+    alert("Enter filename first");
+    return;
+  }
+
+  document.getElementById("status").innerText = "Searching replicas...";
+
+  let res = await fetch(`${MASTER}/get/${filename}`);
+  let data = await res.json();
+
+  for (let node of data.nodes) {
+    try {
+      let r = await fetch(`${node}/get/${filename}`);
+      if (r.ok) {
+        let blob = await r.blob();
+        let url = window.URL.createObjectURL(blob);
+
+        let a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+
+        document.getElementById("status").innerText =
+          "✅ File downloaded successfully!\n📥 Served from: " + node;
+        return;
+      }
+    } catch {}
+  }
+
+  document.getElementById("status").innerText =
+    "❌ File not available on any active node.";
+}
+
+async function checkNodes() {
+  let nodes = ["http://localhost:5001", "http://localhost:5002"];
+  let status = "";
+
+  for (let node of nodes) {
+    try {
+      await fetch(node);
+      status += "🟢 " + node + " is UP\n";
+    } catch {
+      status += "🔴 " + node + " is DOWN\n";
+    }
+  }
+
+  document.getElementById("status").innerText = status;
+}
+</script>
+
+</body>
+</html>
